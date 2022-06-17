@@ -141,8 +141,24 @@ class Assembler(object):
         self.__address_symbol_table. The location must be in binary (not hex or dec).
         Returns None
         """
-        pass
-
+        # Delete comments
+        self.__rm_comments
+        lc = 0
+        for current_line in self.__asm:
+            first = current_line[0]
+            # Check if there's a label and add it to symbol table if found
+            if self.__islabel(first):
+                # Remove comma ","
+                first = first[:-1]
+                self.__address_symbol_table[first] = self.__format2bin(lc, "dec", 16)
+                lc += 1
+            else:
+                if first == "org":
+                    lc = int(current_line[1], 16)
+                elif first == "end":
+                    return
+                else:
+                    lc += 1
 
 
     def __second_pass(self) -> None:
@@ -153,4 +169,35 @@ class Assembler(object):
         also store the translated instruction's binary representation alongside its 
         location (in binary too) in self.__bin.
         """
-        pass
+        lc = 0
+        for current_line in self.__asm:
+            current_lc = self.__format2bin(lc, "dec", 12)
+            # Remove labels
+            if self.__islabel(current_line[0]):
+                current_line.pop(0)
+            first = current_line[0]
+            # Check for pseudo-instructions
+            if first == "org":
+                lc = int(current_line[1], 16)
+            elif first == "end":
+                return
+            elif first == "hex" or first == "dec":
+                self.__bin[current_lc] = self.__format2bin(current_line[1], first, 16)
+                lc += 1
+            else:
+                # Check for Memory Reference Instruction (MRI)
+                if first in self.__mri_table:
+                    I = '1' if len(current_line) > 2 and current_line[-1] == 'i' else '0'
+                    OpCode = I + self.__mri_table[first]
+                    Address = self.__address_symbol_table[current_line[1]] [4:]
+                    MRI = OpCode + Address
+                    self.__bin[current_lc] = MRI
+                # Check for Register Reference Instruction (RRI)
+                elif first in self.__rri_table:
+                    self.__bin[current_lc] = self.__rri_table[first]
+                # Check for Input/Output Instruction (IOI)
+                elif first in self.__ioi_table:
+                    self.__bin[current_lc] = self.__ioi_table[first]
+                else:
+                    print(lc, "Error in line of code !!")
+                lc +=1
